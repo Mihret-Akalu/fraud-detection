@@ -1,87 +1,211 @@
-# Fraud Detection – Task 1: Data Analysis and Preprocessing
+# Fraud Detection – E-Commerce and Bank Transactions
 
-**Objective:**  
-Prepare clean, feature-rich datasets for both E-commerce and bank transaction fraud detection. This includes data cleaning, exploratory data analysis (EDA), geolocation integration, feature engineering, and handling class imbalance.
+**Project Overview:**
+Adey Innovations Inc. aims to improve fraud detection in both **e-commerce transactions** and **bank credit transactions**. This project builds accurate machine learning models, integrates geolocation data, leverages transaction patterns, and applies explainability techniques to identify fraudulent activities effectively.
 
-## 1. Loading Datasets
+---
 
-We load the following datasets:
+## Table of Contents
 
-1. `Fraud_Data.csv` – E-commerce transactions  
-2. `IpAddress_to_Country.csv` – Maps IP ranges to countries  
-3. `creditcard.csv` – Bank transaction data
+1. [Project Structure](#project-structure)
+2. [Datasets](#datasets)
+3. [Task 1: Data Analysis and Preprocessing](#task-1-data-analysis-and-preprocessing)
+4. [Task 2: Model Building and Training](#task-2-model-building-and-training)
+5. [Task 3: Model Explainability](#task-3-model-explainability)
+6. [Installation](#installation)
+7. [Usage](#usage)
+8. [Key Insights & Business Recommendations](#key-insights--business-recommendations)
 
-**Goal:** Inspect the data for structure, missing values, and data types before preprocessing.
+---
 
-## 2. Data Cleaning
+## Project Structure
+
+```
+fraud-detection/
+├── data/
+│   ├── raw/            # Original datasets
+│   └── processed/      # Cleaned & feature-engineered data
+├── notebooks/
+│   ├── eda-fraud-data.ipynb
+│   ├── eda-creditcard.ipynb
+│   ├── feature-engineering.ipynb
+│   ├── modeling.ipynb
+│   ├── shap-explainability.ipynb
+│   └── __init__.py
+├── src/                # Optional utility scripts
+│   └── __init__.py
+├── scripts/            # Optional automation scripts
+│   └── __init__.py
+├── models/             # Saved model artifacts
+├── tests/              # Optional test scripts
+│   └── __init__.py
+├── requirements.txt
+└── README.md
+```
+
+---
+
+## Datasets
+
+1. **Fraud_Data.csv** – E-commerce transactions
+
+   * Key columns: `user_id`, `signup_time`, `purchase_time`, `purchase_value`, `device_id`, `source`, `browser`, `sex`, `age`, `ip_address`, `class`
+   * Challenge: highly imbalanced classes
+
+2. **IpAddress_to_Country.csv** – IP-to-country mapping
+
+3. **creditcard.csv** – Bank credit transactions
+
+   * Key columns: `Time`, `V1`–`V28` (PCA features), `Amount`, `Class`
+   * Challenge: extremely imbalanced classes
+
+---
+
+## Task 1: Data Analysis and Preprocessing
+
+**Objective:** Prepare clean, feature-rich datasets ready for modeling.
+
+**Key Steps:**
+
+1. **Data Cleaning:**
+
+   * Removed duplicates, imputed missing `age` with median, converted datetime fields, verified critical columns.
+
+2. **Exploratory Data Analysis (EDA):**
+
+   * Class distributions reveal severe imbalance.
+   * Country-level fraud patterns identified.
+   * Numerical and categorical features analyzed.
+
+3. **Geolocation Integration:**
+
+   * IP addresses converted to integers.
+   * Merged with `IpAddress_to_Country.csv` via range-based lookup.
+   * Fraud patterns visualized by country.
+
+4. **Feature Engineering:**
+
+   * Time-based: `hour_of_day`, `day_of_week`, `is_weekend`
+   * Duration: `time_since_signup`
+   * Transaction frequency: `tx_count_24h`
+   * Device/IP risk: `users_per_device`, `users_per_ip`
+   * Categorical One-Hot Encoding (`browser`, `source`, `sex`)
+   * Standard scaling for numerical features (`purchase_value`, `age`, `Amount`)
+
+5. **Handling Class Imbalance:**
+
+   * **SMOTE** applied to training data only
+   * Ensures minority class is well-represented without leaking synthetic data
+
+**Outcome:** Feature-engineered datasets saved in `data/processed/fraud_processed.csv`.
+
+---
+
+## Task 2: Model Building and Training
+
+**Objective:** Train and evaluate models to detect fraudulent transactions.
 
 **Steps:**
 
-- Removed duplicate rows to avoid biased modeling.
-- Filled missing `age` values with median (robust against outliers).
-- Converted `signup_time` and `purchase_time` to `datetime`.
-- Checked data types and corrected as needed.
-- Verified there are no missing values in critical columns.
+1. **Data Preparation:**
 
-**Result:** Cleaned datasets ready for EDA.
+   * Stratified train-test split preserves class distribution.
+   * Features separated from target (`class` for E-commerce, `Class` for credit data).
+   * Scaled numeric features and one-hot encoded categorical features.
 
-## 3. Exploratory Data Analysis (EDA)
+2. **Baseline Model:** Logistic Regression
 
-**E-commerce Fraud Data:**
+   * Interpretable, evaluated using **F1-score**, **AUC-PR**, and **confusion matrix**.
 
-- Class distribution shows severe imbalance: far fewer fraud cases than legitimate transactions.
-- Country-level fraud patterns: some countries have higher fraud percentages (Turkmenistan, Namibia, Sri Lanka, Luxembourg, Virgin Islands).
-- Examined distributions of key numerical features (`purchase_value`, `age`).
-- Checked categorical variables (`browser`, `source`, `sex`) for patterns.
+3. **Ensemble Model:** Random Forest (best-performing)
 
-**Bank Credit Card Data:**
+   * Hyperparameters tuned (`n_estimators=200`, `max_depth=10`)
+   * Class weight balanced
+   * Evaluated using same metrics
 
-- Class distribution: 0 = 99.8%, 1 = 0.17% → extremely imbalanced.
-- PCA features (`V1`–`V28`) are ready for modeling.
-- Transaction `Amount` shows higher values for fraudulent transactions.
+4. **Cross-Validation:**
 
-## 4. Geolocation Integration
+   * Stratified K-Fold (k=5) for reliable performance estimation
+   * Metrics reported as mean ± std
 
-**Process:**
+**Outcome:** Random Forest selected as the final model due to superior performance and interpretability.
 
-1. Converted IP addresses to integers for merging.
-2. Merged `Fraud_Data.csv` with `IpAddress_to_Country.csv` using range-based lookup.
-3. Analyzed fraud patterns by country.
+---
 
-**Insights:**
-- Fraudulent transactions are concentrated in specific countries.
-- Geolocation is a valuable predictive feature.
+## Task 3: Model Explainability
 
-## 5. Feature Engineering
+**Objective:** Understand model decisions using **SHAP**.
 
-**E-commerce Features:**
+**Steps:**
 
-- Time-based: `hour_of_day`, `day_of_week` from `purchase_time`.
-- Duration: `time_since_signup` = purchase_time – signup_time.
-- Transaction frequency per user.
-- One-Hot Encoding for categorical features (`browser`, `source`, `sex`).
-- Standard scaling for numerical features (`purchase_value`, `age`).
+1. **Global Feature Importance:**
 
-**Bank Features:**
+   * Top 10 features identified, including time-of-day, transaction frequency, device/IP risk.
 
-- PCA features (`V1`–`V28`) retained.
-- `Amount` scaled.
+2. **Local Explanations:**
 
-## 6. Handling Class Imbalance
+   * SHAP force plots created for:
 
-**Technique:** SMOTE (Synthetic Minority Oversampling Technique) applied to **training data only**.
+     * True Positive (correctly detected fraud)
+     * False Positive (legitimate flagged as fraud)
+     * False Negative (missed fraud)
 
-**Reasoning:**
-- Synthetic oversampling improves model learning for minority class.
-- Avoids leakage of synthetic data into validation or test sets.
+3. **Insights:**
 
-**Result:** Balanced datasets for model training.
+   * High transaction frequency and new accounts are strong fraud indicators.
+   * Certain countries show higher risk.
+   * Unexpected patterns detected in specific browsers or sources.
 
-## 7. Summary
+4. **Business Recommendations:**
 
-- Data cleaning completed for both datasets.
-- Exploratory data analysis revealed fraud patterns by country, browser, and transaction time.
-- Geolocation features added.
-- Feature engineering produced time-based and transaction frequency features.
-- Class imbalance handled with SMOTE.
-- Datasets are now ready for **model training and evaluation** (Task 2).
+   * Transactions within the first few hours of signup should receive extra verification.
+   * High-risk countries or devices should trigger additional checks.
+   * Monitor high-value transactions with unusual frequency or time patterns.
+
+---
+
+## Installation
+
+```bash
+# Clone repository
+git clone <your_repo_url>
+cd fraud-detection
+
+# Create virtual environment
+python -m venv .venv
+
+.venv\Scripts\activate         # Windows
+
+# Install dependencies
+pip install -r requirements.txt
+```
+
+---
+
+## Usage
+
+1. Place raw datasets in `data/raw/`.
+2. Run notebooks in the following order:
+
+```text
+1. eda-fraud-data.ipynb
+2. eda-creditcard.ipynb
+3. feature-engineering.ipynb
+4. modeling.ipynb
+5. shap-explainability.ipynb
+```
+
+3. Processed data will be saved in `data/processed/`.
+4. Trained models can be saved/loaded from `models/`.
+
+---
+
+## Key Insights & Business Impact
+
+* Fraud concentrated in specific **countries, devices, and time windows**.
+* High transaction frequency and new users are strong fraud indicators.
+* Explainability (SHAP) enables **actionable business recommendations**.
+* Proper handling of **class imbalance** ensures models can detect minority fraud cases reliably.
+
+---
+
